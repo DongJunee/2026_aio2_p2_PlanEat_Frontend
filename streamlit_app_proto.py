@@ -225,8 +225,6 @@ if s.recommendations:
                     st.download_button("장보기 목록 저장 ↓", "\n".join(shopping_lines),
                                        file_name=f"planeat-set-{set_id}.txt", mime="text/plain",
                                        key=f"download_{set_id}")
-            # TODO: PDF 저장 기능 연결
-            st.button("PDF 저장하기", key=f"save_pdf_{set_id}", width="stretch")
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
 prompt=st.chat_input("냉장고 사진을 올리거나, 원하는 식단을 이야기해 주세요",accept_file="multiple",file_type=["jpg","jpeg","png","webp"],max_upload_size=10,key="composer")
