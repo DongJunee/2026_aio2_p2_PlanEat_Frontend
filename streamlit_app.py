@@ -69,6 +69,19 @@ for msg in s.messages:
         if msg["images"]:
             for col,img in zip(st.columns(len(msg["images"])),msg["images"]):
                 col.image(img["data"],caption=img["name"],width=160)
+if s.ingredients and not s.confirmed:
+    with st.container(border=True):
+        st.subheader("냉장고 재료를 확인해 주세요",anchor=False)
+        st.caption("셀을 눌러 수정하고, 행 선택으로 삭제하거나 마지막 행에 재료를 추가하세요.")
+        edited=st.data_editor(s.ingredients,num_rows="dynamic",hide_index=True,key=f"ingredients_{s.revision}",width="stretch",column_order=["name","amount"],column_config={"name":st.column_config.TextColumn("재료",required=True),"amount":st.column_config.TextColumn("수량",required=True)})
+        if st.button("이 재료로 확정하기 →",type="primary"):
+            valid=[{"name":str(r.get("name") or "").strip(),"amount":str(r.get("amount") or "").strip()} for r in edited]
+            if not valid or any(not r["name"] or not r["amount"] for r in valid): st.error("재료를 하나 이상 입력하고 이름과 수량을 채워주세요.")
+            elif len({r["name"] for r in valid})!=len(valid): st.error("같은 재료는 한 행으로 합쳐 수량을 확인해 주세요.")
+            else:
+                s.ingredients=valid
+                s.confirmed=True
+                st.rerun()
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
 prompt=st.chat_input("냉장고 사진을 올리거나, 원하는 식단을 이야기해 주세요",accept_file="multiple",file_type=["jpg","jpeg","png","webp"],max_upload_size=5,key="composer")
@@ -114,6 +127,12 @@ if prompt:
                 message("user", text or f"사진 {len(images)}장을 첨부했어요.", images)
                 
             if result :
+                if (
+                    result.get("status") == "NEED_MORE_INFO"
+                    and result.get("step") == "INGREDIENT_CONFIRM"
+                ):
+                    s.ingredients = result.get("ingredients") or []
+                
                 response_text = result.get("response", "")
                 questions = result.get("questions") or []
                 if questions:
