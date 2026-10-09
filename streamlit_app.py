@@ -1,12 +1,14 @@
 """PlanEat UI """
 import base64
 import mimetypes
+from urllib.parse import urljoin
 from uuid import uuid4
 from html import escape
 from io import BytesIO
 import streamlit as st
+import httpx
 from PIL import Image, UnidentifiedImageError
-from common import ApiError, api
+from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api
 
 st.set_page_config(page_title="PlanEat · 오늘의 식단", page_icon="🥬", layout="wide")
 st.markdown('''<style>
@@ -169,6 +171,8 @@ if prompt:
                     s.recommendations = True
                     s.confirmed = True
                     s.revision += 1
+                    if result.get("next_action") == "PDF_READY":
+                        s.pending_pdf_url = result.get("pdf_url") or ""
                 
                 response_text = result.get("response", "")
                 questions = result.get("questions") or []
@@ -179,6 +183,41 @@ if prompt:
                 st.json(result)
                 s.last_result = result
                 st.rerun()
+
+if "pending_pdf_url" in s:
+    pdf_url = s.pop("pending_pdf_url")
+    if not pdf_url:
+        st.error("PDF 다운로드 주소가 응답에 없습니다.")
+    else:
+        try:
+            pdf_response = httpx.get(
+                urljoin(BACKEND_URL.rstrip("/") + "/", pdf_url),
+                timeout=HTTP_TIMEOUT,
+                follow_redirects=True,
+            )
+            pdf_response.raise_for_status()
+            if not pdf_response.content.startswith(b"%PDF-"):
+                raise ValueError("PDF가 아닌 응답")
+        except (httpx.HTTPError, ValueError):
+            st.error("PDF를 가져오지 못했습니다. 채팅으로 PDF를 다시 요청해 주세요.")
+        else:
+            # rerun 후 한 번만 실행하여 다른 입력으로 인한 중복 다운로드를 막는다.
+            encoded_pdf = base64.b64encode(pdf_response.content).decode("ascii")
+            st.html(f"""
+                <script>
+                (() => {{
+                    const bytes = Uint8Array.from(atob("{encoded_pdf}"), c => c.charCodeAt(0));
+                    const url = URL.createObjectURL(new Blob([bytes], {{type: "application/pdf"}}));
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "planeat-recipes.pdf";
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 60000);
+                }})();
+                </script>
+            """, unsafe_allow_javascript=True)
 
 if "last_result" in s:
     st.json(s.last_result)
