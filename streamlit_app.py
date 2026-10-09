@@ -84,6 +84,21 @@ if s.ingredients and not s.confirmed:
                 s.ingredients=valid
                 s.confirmed=True
                 st.rerun()
+if s.confirmed:
+    with st.container(border=True):
+        st.markdown(f"**확정한 재료 {len(s.ingredients)}개**")
+        st.markdown(''.join(f'<span class="chip">{escape(r["name"])} · {escape(r["amount"])}</span>' for r in s.ingredients),unsafe_allow_html=True)
+        if st.button("재료 다시 수정"):
+            s.confirmed=False
+            s.recommendations=False
+            s.selected=None
+            s.revision+=1
+            st.rerun()
+    if st.button("내 식단 SET A · B 보기",type="primary"):
+        # TODO: POST confirmed ingredients, purpose, minutes, cuisine, exclusions,
+        # vegetarian, spicy and conversation to the backend recommendation API.
+        s.recommendations=True
+        st.rerun()   
 if s.recommendations:
     st.markdown('<div class="eyebrow">YOUR MEAL IDEAS</div>',unsafe_allow_html=True)
     st.subheader("오늘, 마음이 가는 식단을 골라보세요",anchor=False)
