@@ -43,6 +43,14 @@ def api(method: str, path: str, **kwargs):
         )
 
     if res.status_code >= 400:
+        # FastAPI가 계약 오류의 원인을 JSON으로 내려주므로, 사용자가 다음 행동을
+        # 알 수 있도록 안전한 서버 메시지만 보여준다.
+        try:
+            detail = res.json().get("response")
+        except (ValueError, AttributeError):
+            detail = None
+        if isinstance(detail, str) and detail.strip():
+            raise ApiError(detail.strip())
         raise ApiError(f"요청이 실패했습니다 (상태 코드 {res.status_code}).")
 
     return res.json() if res.content else None

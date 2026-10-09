@@ -1,5 +1,6 @@
 """PlanEat UI """
 import base64
+import mimetypes
 from uuid import uuid4
 from html import escape
 from io import BytesIO
@@ -31,6 +32,16 @@ s=st.session_state
 
 def message(role,text,images=None):
     s.messages.append({"role":role,"text":text,"images":images or []})
+
+
+def image_data_url(filename: str, data: bytes) -> str:
+    """백엔드 Vision API가 허용하는 이미지 Data URL을 만든다."""
+    mime_type, _ = mimetypes.guess_type(filename)
+    if mime_type not in {"image/jpeg", "image/png", "image/webp"}:
+        # 업로드 허용 확장자와 일치하는 안전한 기본값이다.
+        mime_type = "image/jpeg"
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
 
 with st.sidebar:
     st.markdown('<div class="brand">🥬 PlanEat</div><div class="muted">내 냉장고에서 시작하는 식단</div>',unsafe_allow_html=True)
@@ -79,16 +90,20 @@ if prompt:
             if "session_id" not in s:
                 s.session_id = str(uuid4())
 
+            # ChatRequest.message는 빈 문자열을 허용하지 않는다. 사진만 첨부한
+            # 경우에도 사진 분석 의도를 명시해 API 계약을 만족시킨다.
+            request_message = text or "첨부한 냉장고 사진 속 재료를 확인해주세요."
+
             result = api(
                 "POST",
                 "/chat",
                 json={
                     "session_id": s.session_id,
-                    "message": text,
+                    "message": request_message,
                     "attachments": [
                         {
                             "type": "image",
-                            "data": base64.b64encode(image["data"]).decode("ascii"),
+                            "data": image_data_url(image["name"], image["data"]),
                         }
                         for image in images
                     ],
@@ -96,7 +111,7 @@ if prompt:
             )
 
             if text or images:
-                message("user", text, images)
+                message("user", text or f"사진 {len(images)}장을 첨부했어요.", images)
                 
             if result :
                 response_text = result.get("response", "")
