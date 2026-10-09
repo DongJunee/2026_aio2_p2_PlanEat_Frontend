@@ -26,7 +26,7 @@ div.stButton>button[kind="primary"]{background:#355d40;border-color:#355d40;}
 @media(max-width:640px){.block-container{padding-top:4.5rem;}h1{font-size:2rem!important;}}
 </style>''', unsafe_allow_html=True)
 
-for key,value in {"messages":[],"ingredients":[],"confirmed":False,"recommendations":False,"selected":None,"revision":0}.items():
+for key,value in {"messages":[],"ingredients":[],"confirmed":False,"recommendations":False,"recommendation_data":{},"revision":0}.items():
     if key not in st.session_state: st.session_state[key]=value
 s=st.session_state
 
@@ -82,6 +82,31 @@ if s.ingredients and not s.confirmed:
                 s.ingredients=valid
                 s.confirmed=True
                 st.rerun()
+if s.recommendations:
+    st.markdown('<div class="eyebrow">YOUR MEAL IDEAS</div>',unsafe_allow_html=True)
+    st.subheader("오늘, 마음이 가는 식단을 골라보세요",anchor=False)
+    recipe_sets = s.recommendation_data.get("recipe_sets") or []
+    if not recipe_sets:
+        st.info("추천된 식단이 없습니다. 원하는 식단을 다시 요청해 주세요.")
+    for set_index in range(0, len(recipe_sets), 2):
+        for set_column, meal_set in zip(st.columns(2, gap="large"), recipe_sets[set_index:set_index + 2]):
+            set_id = meal_set["set_id"]
+            recipes = meal_set.get("recipes") or []
+            with set_column.container(border=True):
+                st.subheader(set_id, anchor=False)
+                st.caption(f"레시피 {len(recipes)}개")
+                for number, recipe in enumerate(recipes, start=1):
+                    thumbnail, description = st.columns([1, 2], gap="medium", vertical_alignment="top")
+                    with thumbnail:
+                        if recipe.get("image"):
+                            st.image(recipe["image"], caption=recipe["title"], width="stretch")
+                        else:
+                            st.markdown('<div class="food">🍽️</div>', unsafe_allow_html=True)
+                    with description:
+                        st.markdown(f"**{number}. {recipe['title']}**")
+                        st.caption(f"조리 시간: {recipe['cook_time']}분")
+                        st.caption("보유 재료: " + (", ".join(recipe.get("owned_ingredients") or []) or "없음"))
+                        st.caption("부족 재료: " + (", ".join(item["name"] for item in recipe.get("missing_ingredients") or []) or "추가 구매 없음"))
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
 prompt=st.chat_input("냉장고 사진을 올리거나, 원하는 식단을 이야기해 주세요",accept_file="multiple",file_type=["jpg","jpeg","png","webp"],max_upload_size=5,key="composer")
@@ -132,6 +157,18 @@ if prompt:
                     and result.get("step") == "INGREDIENT_CONFIRM"
                 ):
                     s.ingredients = result.get("ingredients") or []
+                    s.confirmed = False
+                    s.recommendations = False
+                    s.recommendation_data = {}
+                    s.revision += 1
+                elif (
+                    result.get("status") == "SUCCESS"
+                    and result.get("step") == "COMPLETED"
+                ):
+                    s.recommendation_data = result.get("data") or {}
+                    s.recommendations = True
+                    s.confirmed = True
+                    s.revision += 1
                 
                 response_text = result.get("response", "")
                 questions = result.get("questions") or []
