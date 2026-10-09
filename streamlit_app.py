@@ -99,7 +99,12 @@ if prompt:
                 message("user", text, images)
                 
             if result :
-                message("assistant", result['response'])
+                response_text = result.get("response", "")
+                questions = result.get("questions") or []
+                if questions:
+                    question_text = "\n".join(f"- {question}" for question in questions)
+                    response_text = f"{response_text}\n\n{question_text}".strip()
+                message("assistant", response_text)
                 st.json(result)
                 s.last_result = result
                 st.rerun()
