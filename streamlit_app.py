@@ -2,6 +2,7 @@
 import base64
 import mimetypes
 from contextlib import closing
+from copy import deepcopy
 from itertools import chain
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -35,8 +36,14 @@ for key,value in {"messages":[],"ingredients":[],"confirmed":False,"recommendati
     if key not in st.session_state: st.session_state[key]=value
 s=st.session_state
 
-def message(role,text,images=None):
-    s.messages.append({"role":role,"text":text,"images":images or []})
+def message(role,text,images=None,recommendation_data=None,ingredients=None):
+    entry = {"role":role,"text":text,"images":images or []}
+    if recommendation_data is not None:
+        # 각 답변의 추천 결과를 보존하여 이후 추천으로 덮어쓰지 않는다.
+        entry["recommendation_data"] = deepcopy(recommendation_data)
+    if ingredients is not None:
+        entry["ingredients"] = deepcopy(ingredients)
+    s.messages.append(entry)
 
 
 def image_data_url(filename: str, data: bytes) -> str:
@@ -47,6 +54,32 @@ def image_data_url(filename: str, data: bytes) -> str:
         mime_type = "image/jpeg"
     encoded = base64.b64encode(data).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
+
+def render_recommendations(data):
+    st.markdown('<div class="eyebrow">YOUR MEAL IDEAS</div>',unsafe_allow_html=True)
+    st.subheader("오늘, 마음이 가는 식단을 골라보세요",anchor=False)
+    recipe_sets = data.get("recipe_sets") or []
+    if not recipe_sets:
+        st.info("추천된 식단이 없습니다. 원하는 식단을 다시 요청해 주세요.")
+    for set_index in range(0, len(recipe_sets), 2):
+        for set_column, meal_set in zip(st.columns(2, gap="large"), recipe_sets[set_index:set_index + 2]):
+            set_id = meal_set["set_id"]
+            recipes = meal_set.get("recipes") or []
+            with set_column.container(border=True):
+                st.subheader(set_id, anchor=False)
+                st.caption(f"레시피 {len(recipes)}개")
+                for number, recipe in enumerate(recipes, start=1):
+                    thumbnail, description = st.columns([1, 2], gap="medium", vertical_alignment="top")
+                    with thumbnail:
+                        if recipe.get("image"):
+                            st.image(recipe["image"], caption=recipe["title"], width="stretch")
+                        else:
+                            st.markdown('<div class="food">🍽️</div>', unsafe_allow_html=True)
+                    with description:
+                        st.markdown(f"**{number}. {recipe['title']}**")
+                        st.caption(f"조리 시간: {recipe['cook_time']}분")
+                        st.caption("보유 재료: " + (", ".join(recipe.get("owned_ingredients") or []) or "없음"))
+                        st.caption("부족 재료: " + (", ".join(item["name"] for item in recipe.get("missing_ingredients") or []) or "추가 구매 없음"))
 
 with st.sidebar:
     st.markdown('<div class="brand">🥬 PlanEat</div><div class="muted">내 냉장고에서 시작하는 식단</div>',unsafe_allow_html=True)
@@ -75,42 +108,14 @@ for msg in s.messages:
             for col,img in zip(st.columns(len(msg["images"])),msg["images"]):
                 # Data URL은 원본을 유지하고 표시 너비만 줄여 확대 시에도 선명하다.
                 col.image(image_data_url(img["name"], img["data"]),caption=img["name"],width=160)
+    if "recommendation_data" in msg:
+        render_recommendations(msg["recommendation_data"])
 
-last_result = s.get("last_result") or {}
-if (
-    last_result.get("status") == "NEED_MORE_INFO"
-    and last_result.get("step") == "INGREDIENT_CONFIRM"
-):
-    with st.container(border=True):
-        st.subheader("냉장고 재료를 확인해 주세요",anchor=False)
-        st.markdown(f"**냉장고 재료 {len(s.ingredients)}개**")
-        st.markdown(''.join(f'<span class="chip">{escape(r["name"])} · {escape(r["amount"])}</span>' for r in s.ingredients),unsafe_allow_html=True)
+    if "ingredients" in msg:
+        with st.container(border=True):
+            st.markdown(f"**냉장고 재료 {len(msg['ingredients'])}개**")
+            st.markdown(''.join(f'<span class="chip">{escape(r["name"])} · {escape(r["amount"])}</span>' for r in msg["ingredients"]),unsafe_allow_html=True)
 
-if s.recommendations:
-    st.markdown('<div class="eyebrow">YOUR MEAL IDEAS</div>',unsafe_allow_html=True)
-    st.subheader("오늘, 마음이 가는 식단을 골라보세요",anchor=False)
-    recipe_sets = s.recommendation_data.get("recipe_sets") or []
-    if not recipe_sets:
-        st.info("추천된 식단이 없습니다. 원하는 식단을 다시 요청해 주세요.")
-    for set_index in range(0, len(recipe_sets), 2):
-        for set_column, meal_set in zip(st.columns(2, gap="large"), recipe_sets[set_index:set_index + 2]):
-            set_id = meal_set["set_id"]
-            recipes = meal_set.get("recipes") or []
-            with set_column.container(border=True):
-                st.subheader(set_id, anchor=False)
-                st.caption(f"레시피 {len(recipes)}개")
-                for number, recipe in enumerate(recipes, start=1):
-                    thumbnail, description = st.columns([1, 2], gap="medium", vertical_alignment="top")
-                    with thumbnail:
-                        if recipe.get("image"):
-                            st.image(recipe["image"], caption=recipe["title"], width="stretch")
-                        else:
-                            st.markdown('<div class="food">🍽️</div>', unsafe_allow_html=True)
-                    with description:
-                        st.markdown(f"**{number}. {recipe['title']}**")
-                        st.caption(f"조리 시간: {recipe['cook_time']}분")
-                        st.caption("보유 재료: " + (", ".join(recipe.get("owned_ingredients") or []) or "없음"))
-                        st.caption("부족 재료: " + (", ".join(item["name"] for item in recipe.get("missing_ingredients") or []) or "추가 구매 없음"))
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
 remaining_images = remaining_image_slots(s.messages)
@@ -189,11 +194,13 @@ if prompt:
                 message("assistant", f"{partial_text}\n\n{failure_text}".strip())
                 st.error(failure_text)
             else:
+                ingredients = None
                 if (
                     result.get("status") == "NEED_MORE_INFO"
                     and result.get("step") == "INGREDIENT_CONFIRM"
                 ):
                     s.ingredients = result.get("ingredients") or []
+                    ingredients = s.ingredients
                     s.confirmed = False
                     s.recommendations = False
                     s.recommendation_data = {}
@@ -214,7 +221,17 @@ if prompt:
                 if questions:
                     question_text = "\n".join(f"- {question}" for question in questions)
                     response_text = f"{response_text}\n\n{question_text}".strip()
-                message("assistant", response_text)
+                recommendation_data = None
+                if (
+                    result.get("status") == "SUCCESS"
+                    and result.get("step") == "COMPLETED"
+                    and "recipe_sets" in (result.get("data") or {})
+                    # 최초 추천은 기록에 고정하고 후속 완료 응답에는 추가하지 않는다.
+                    and not any("recommendation_data" in msg for msg in s.messages)
+                ):
+                    recommendation_data = result["data"]
+                message("assistant", response_text, recommendation_data=recommendation_data,
+                        ingredients=ingredients)
                 s.last_result = result
                 st.rerun()
 
