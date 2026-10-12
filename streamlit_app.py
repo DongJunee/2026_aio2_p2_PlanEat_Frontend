@@ -114,7 +114,6 @@ if s.recommendations:
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
 remaining_images = remaining_image_slots(s.messages)
-st.caption(f"대화당 사진은 최대 {MAX_SESSION_IMAGES}장 · 추가 가능한 사진 {remaining_images}장. 한도를 모두 사용하면 새로운 대화에서 첨부해 주세요.")
 attachment_mode = "multiple" if remaining_images > 1 else bool(remaining_images)
 prompt=st.chat_input("냉장고 사진을 올리거나, 원하는 식단을 이야기해 주세요",accept_file=attachment_mode,file_type=["jpg","jpeg","png","webp"],max_upload_size=5,key="composer")
 if prompt:
