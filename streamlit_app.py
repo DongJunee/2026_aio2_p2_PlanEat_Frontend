@@ -75,7 +75,7 @@ for msg in s.messages:
                 # Data URL은 원본을 유지하고 표시 너비만 줄여 확대 시에도 선명하다.
                 col.image(image_data_url(img["name"], img["data"]),caption=img["name"],width=160)
 
-if s.ingredients:
+if s.ingredients and not s.recommendations:
     with st.container(border=True):
         st.subheader("냉장고 재료를 확인해 주세요",anchor=False)
         st.markdown(f"**냉장고 재료 {len(s.ingredients)}개**")
