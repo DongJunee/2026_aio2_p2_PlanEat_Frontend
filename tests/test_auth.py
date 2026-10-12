@@ -48,6 +48,14 @@ class AuthTests(unittest.TestCase):
                 app.run()
                 self.assertEqual(len(app.chat_input), 1)
 
+                app.session_state.messages = [{"role": "user", "text": "이전 대화", "images": []}]
+                next(button for button in app.button if button.label == "＋ 새로운 대화").click().run()
+                self.assertFalse(app.exception)
+                self.assertTrue(app.session_state.authed)
+                self.assertEqual(app.session_state.messages, [])
+                self.assertEqual(len(app.chat_input), 1)
+                self.assertFalse(any(field.label == "접속 비밀번호" for field in app.text_input))
+
                 fresh = AppTest.from_file(str(ROOT / page)).run()
                 self.assertEqual(len(fresh.chat_input), 0)
                 self.assertEqual(fresh.text_input[0].label, "접속 비밀번호")
