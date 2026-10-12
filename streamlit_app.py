@@ -1,6 +1,8 @@
 """PlanEat UI """
 import base64
 import mimetypes
+from contextlib import closing
+from itertools import chain
 from urllib.parse import urljoin
 from uuid import uuid4
 from html import escape
@@ -8,7 +10,7 @@ from io import BytesIO
 import streamlit as st
 import httpx
 from PIL import Image, UnidentifiedImageError
-from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api
+from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api, chat_chunks
 
 st.set_page_config(page_title="PlanEat · 오늘의 식단", page_icon="🥬", layout="wide")
 st.markdown('''<style>
@@ -128,9 +130,10 @@ if prompt:
             # 경우에도 사진 분석 의도를 명시해 API 계약을 만족시킨다.
             request_message = text or "첨부한 냉장고 사진 속 재료를 확인해주세요."
 
-            result = api(
+            events = api(
                 "POST",
                 "/chat",
+                accept="text/event-stream",
                 json={
                     "session_id": s.session_id,
                     "message": request_message,
@@ -144,10 +147,39 @@ if prompt:
                 },
             )
 
-            if text or images:
-                message("user", text or f"사진 {len(images)}장을 첨부했어요.", images)
-                
-            if result :
+            user_text = text or f"사진 {len(images)}장을 첨부했어요."
+            message("user", user_text, images)
+            with st.chat_message("user", avatar="🙂"):
+                st.write(user_text)
+                for img in images:
+                    st.image(img["data"], caption=img["name"], width=160)
+
+            result = {}
+            chunks = []
+
+            def response_chunks():
+                stream = chat_chunks(events, result)
+                try:
+                    for chunk in stream:
+                        chunks.append(chunk)
+                        yield chunk
+                finally:
+                    stream.close()
+
+            try:
+                with st.chat_message("assistant", avatar="🥬"):
+                    with closing(response_chunks()) as stream:
+                        # 진행 이벤트만 오는 동안 표시하고 첫 텍스트 수신 시 숨긴다.
+                        with st.spinner("답변을 준비하고 있어요…", show_time=True):
+                            first_chunk = next(stream, "")
+                        streamed_text = st.write_stream(chain((first_chunk,), stream))
+            except ApiError as exc:
+                # 중단된 응답도 기록하여 다음 rerun에서 사라지지 않게 한다.
+                failure_text = f"응답을 완료하지 못했습니다: {exc}"
+                partial_text = "".join(chunks)
+                message("assistant", f"{partial_text}\n\n{failure_text}".strip())
+                st.error(failure_text)
+            else:
                 if (
                     result.get("status") == "NEED_MORE_INFO"
                     and result.get("step") == "INGREDIENT_CONFIRM"
@@ -168,13 +200,12 @@ if prompt:
                     if result.get("next_action") == "PDF_READY":
                         s.pending_pdf_url = result.get("pdf_url") or ""
                 
-                response_text = result.get("response", "")
+                response_text = result.get("response") or streamed_text or ""
                 questions = result.get("questions") or []
                 if questions:
                     question_text = "\n".join(f"- {question}" for question in questions)
                     response_text = f"{response_text}\n\n{question_text}".strip()
                 message("assistant", response_text)
-                st.json(result)
                 s.last_result = result
                 st.rerun()
 
@@ -213,5 +244,5 @@ if "pending_pdf_url" in s:
                 </script>
             """, unsafe_allow_javascript=True)
 
-if "last_result" in s:
-    st.json(s.last_result)
+# if "last_result" in s:
+#     st.json(s.last_result) # 테스트용
