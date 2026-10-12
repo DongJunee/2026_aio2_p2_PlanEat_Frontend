@@ -8,6 +8,7 @@ from uuid import uuid4
 from html import escape
 from io import BytesIO
 import streamlit as st
+from attachment_limits import MAX_SESSION_IMAGES, remaining_image_slots
 import httpx
 from PIL import Image, UnidentifiedImageError
 from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api, chat_chunks
@@ -108,11 +109,15 @@ if s.recommendations:
                         st.caption("부족 재료: " + (", ".join(item["name"] for item in recipe.get("missing_ingredients") or []) or "추가 구매 없음"))
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
-prompt=st.chat_input("냉장고 사진을 올리거나, 원하는 식단을 이야기해 주세요",accept_file="multiple",file_type=["jpg","jpeg","png","webp"],max_upload_size=5,key="composer")
+remaining_images = remaining_image_slots(s.messages)
+st.caption(f"대화당 사진은 최대 {MAX_SESSION_IMAGES}장 · 추가 가능한 사진 {remaining_images}장. 한도를 모두 사용하면 새로운 대화에서 첨부해 주세요.")
+attachment_mode = "multiple" if remaining_images > 1 else bool(remaining_images)
+prompt=st.chat_input("냉장고 사진을 올리거나, 원하는 식단을 이야기해 주세요",accept_file=attachment_mode,file_type=["jpg","jpeg","png","webp"],max_upload_size=5,key="composer")
 if prompt:
-    files=list(prompt.files)
-    text=prompt.text.strip() or ""
-    if len(files)>5: st.error("한 번에 최대 5장까지 보낼 수 있어요. 사진을 5장 이하로 다시 선택해 주세요.")
+    files=[] if isinstance(prompt, str) else list(prompt.files)
+    text=(prompt if isinstance(prompt, str) else prompt.text).strip()
+    if len(files) > remaining_images:
+        st.error(f"대화당 사진은 최대 {MAX_SESSION_IMAGES}장까지 첨부할 수 있어요. 현재 추가 가능한 사진은 {remaining_images}장입니다. 사진 수를 줄여 다시 보내 주세요.")
     else:
         images=[]
         try:
