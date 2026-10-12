@@ -71,34 +71,13 @@ for msg in s.messages:
         if msg["images"]:
             for col,img in zip(st.columns(len(msg["images"])),msg["images"]):
                 col.image(img["data"],caption=img["name"],width=160)
-if s.ingredients and not s.confirmed:
+
+if s.ingredients:
     with st.container(border=True):
         st.subheader("냉장고 재료를 확인해 주세요",anchor=False)
-        st.caption("셀을 눌러 수정하고, 행 선택으로 삭제하거나 마지막 행에 재료를 추가하세요.")
-        edited=st.data_editor(s.ingredients,num_rows="dynamic",hide_index=True,key=f"ingredients_{s.revision}",width="stretch",column_order=["name","amount"],column_config={"name":st.column_config.TextColumn("재료",required=True),"amount":st.column_config.TextColumn("수량",required=True)})
-        if st.button("이 재료로 확정하기 →",type="primary"):
-            valid=[{"name":str(r.get("name") or "").strip(),"amount":str(r.get("amount") or "").strip()} for r in edited]
-            if not valid or any(not r["name"] or not r["amount"] for r in valid): st.error("재료를 하나 이상 입력하고 이름과 수량을 채워주세요.")
-            elif len({r["name"] for r in valid})!=len(valid): st.error("같은 재료는 한 행으로 합쳐 수량을 확인해 주세요.")
-            else:
-                s.ingredients=valid
-                s.confirmed=True
-                st.rerun()
-if s.confirmed:
-    with st.container(border=True):
-        st.markdown(f"**확정한 재료 {len(s.ingredients)}개**")
+        st.markdown(f"**냉장고 재료 {len(s.ingredients)}개**")
         st.markdown(''.join(f'<span class="chip">{escape(r["name"])} · {escape(r["amount"])}</span>' for r in s.ingredients),unsafe_allow_html=True)
-        if st.button("재료 다시 수정"):
-            s.confirmed=False
-            s.recommendations=False
-            s.selected=None
-            s.revision+=1
-            st.rerun()
-    if st.button("내 식단 SET A · B 보기",type="primary"):
-        # TODO: POST confirmed ingredients, purpose, minutes, cuisine, exclusions,
-        # vegetarian, spicy and conversation to the backend recommendation API.
-        s.recommendations=True
-        st.rerun()   
+
 if s.recommendations:
     st.markdown('<div class="eyebrow">YOUR MEAL IDEAS</div>',unsafe_allow_html=True)
     st.subheader("오늘, 마음이 가는 식단을 골라보세요",anchor=False)
