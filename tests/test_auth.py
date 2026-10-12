@@ -33,11 +33,15 @@ class AuthTests(unittest.TestCase):
                 self.assertEqual(app.text_input[0].label, "접속 비밀번호")
                 self.assertEqual(len(app.chat_input), 0)
 
-                app.text_input[0].set_value("wrong").run()
+                app.button[0].click().run()
+                self.assertEqual(app.error[0].value, "비밀번호를 입력해 주세요.")
+                app.text_input[0].set_value("wrong")
+                app.button[0].click().run()
                 self.assertEqual(app.error[0].value, "비밀번호가 올바르지 않습니다.")
                 self.assertEqual(len(app.chat_input), 0)
 
-                app.text_input[0].set_value("접속-test").run()
+                app.text_input[0].set_value("접속-test")
+                app.button[0].click().run()
                 self.assertFalse(app.exception)
                 self.assertTrue(app.session_state.authed)
                 self.assertEqual(len(app.chat_input), 1)

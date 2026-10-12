@@ -31,12 +31,63 @@ APP_PASSWORD = setting("APP_PASSWORD")
 def require_auth():
     """페이지를 실행할 때마다 현재 세션의 접속 인증을 확인한다."""
     if APP_PASSWORD and not st.session_state.get("authed"):
-        pw = st.text_input("접속 비밀번호", type="password")
-        if pw and hmac.compare_digest(pw.encode("utf-8"), APP_PASSWORD.encode("utf-8")):
-            st.session_state.authed = True
-            st.rerun()
-        if pw:
-            st.error("비밀번호가 올바르지 않습니다.")
+        st.markdown("""
+        <style>
+        .stApp { background: radial-gradient(ellipse at top, #eaf1e4, #fafbf8 65%); }
+        [data-testid="stMainBlockContainer"] {
+            width: 100%; max-width: 640px; box-sizing: border-box;
+            padding: clamp(3rem, 12vh, 8rem) 24px 3rem;
+        }
+        .auth-brand { text-align: center; color: #355d40; font-size: 24px;
+            font-weight: 800; letter-spacing: -1px; margin-bottom: 28px; }
+        [data-testid="stForm"] { background: #fff; border: 1px solid #e0e8da;
+            border-radius: 24px; padding: 32px;
+            box-shadow: 0 16px 48px #2c503610; }
+        .auth-icon { display: flex; align-items: center; justify-content: center;
+            width: 56px; height: 56px; border-radius: 18px; background: #eef3e8;
+            font-size: 28px; margin-bottom: 20px; }
+        .auth-title { color: #243d2c; font-size: 27px; font-weight: 750;
+            letter-spacing: -1px; margin: 0 0 10px; line-height: 1.35;
+            word-break: keep-all; overflow-wrap: break-word; }
+        .auth-description { color: #6b7866; font-size: 14px; line-height: 1.8;
+            margin: 0 0 20px; word-break: keep-all; }
+        [data-testid="stTextInput"] label { color: #344730; }
+        [data-testid="stTextInputRootElement"] { background: #fafbf8;
+            color: #243d2c; border-radius: 12px; }
+        [data-testid="stTextInputRootElement"]:focus-within {
+            border-color: #355d40; box-shadow: 0 0 0 3px #355d4015; }
+        [data-testid="stFormSubmitButton"] button {
+            min-height: 48px; border-radius: 12px; background: #355d40;
+            border: 1px solid #355d40; color: white; font-weight: 600; }
+        [data-testid="stFormSubmitButton"] button:hover {
+            background: #294b32; border-color: #294b32; color: white; }
+        [data-testid="stFormSubmitButton"] button:focus-visible {
+            outline: 3px solid #92b581; outline-offset: 3px; }
+        .auth-footer { text-align: center; color: #74806e; font-size: 12px;
+            margin-top: 18px; }
+        @media (max-width: 480px) {
+            [data-testid="stMainBlockContainer"] { padding-left: 20px; padding-right: 20px; }
+            [data-testid="stForm"] { padding: 24px; }
+            .auth-title { font-size: 24px; }
+        }
+        </style>
+        <div class="auth-brand">🥬 PlanEat</div>
+        """, unsafe_allow_html=True)
+        with st.form("access_password"):
+            st.markdown("""
+            <div class="auth-icon" aria-hidden="true">🌱</div>
+            <h1 class="auth-title">오늘의 식단을 시작해 볼까요?</h1>
+            <p class="auth-description">내 냉장고에서 시작하는 가벼운 식사 계획.<br>
+            전달받은 비밀번호로 PlanEat에 입장해 주세요.</p>
+            """, unsafe_allow_html=True)
+            pw = st.text_input("접속 비밀번호", type="password", placeholder="비밀번호를 입력해 주세요")
+            submitted = st.form_submit_button("PlanEat 시작하기", type="primary", use_container_width=True)
+            if submitted:
+                if pw and hmac.compare_digest(pw.encode("utf-8"), APP_PASSWORD.encode("utf-8")):
+                    st.session_state.authed = True
+                    st.rerun()
+                st.error("비밀번호가 올바르지 않습니다." if pw else "비밀번호를 입력해 주세요.")
+        st.markdown('<p class="auth-footer">인증 후 나만의 식단을 계획할 수 있어요.</p>', unsafe_allow_html=True)
         st.stop()
 
 HTTP_TIMEOUT = 60
