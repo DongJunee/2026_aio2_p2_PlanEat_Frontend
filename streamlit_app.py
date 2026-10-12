@@ -76,7 +76,7 @@ def render_recommendations(data):
                         else:
                             st.markdown('<div class="food">🍽️</div>', unsafe_allow_html=True)
                     with description:
-                        st.markdown(f"**{number}. {recipe['title']}**")
+                        st.markdown(f"**{number}. {recipe['title']}(출처:{recipe.get('recipe_id', '정보 없음')})**")
                         st.caption(f"조리 시간: {recipe['cook_time']}분")
                         st.caption("보유 재료: " + (", ".join(recipe.get("owned_ingredients") or []) or "없음"))
                         st.caption("부족 재료: " + (", ".join(item["name"] for item in recipe.get("missing_ingredients") or []) or "추가 구매 없음"))
