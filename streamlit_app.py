@@ -72,7 +72,8 @@ for msg in s.messages:
         st.write(msg["text"])
         if msg["images"]:
             for col,img in zip(st.columns(len(msg["images"])),msg["images"]):
-                col.image(img["data"],caption=img["name"],width=160)
+                # Data URL은 원본을 유지하고 표시 너비만 줄여 확대 시에도 선명하다.
+                col.image(image_data_url(img["name"], img["data"]),caption=img["name"],width=160)
 
 if s.ingredients:
     with st.container(border=True):
@@ -152,7 +153,7 @@ if prompt:
             with st.chat_message("user", avatar="🙂"):
                 st.write(user_text)
                 for img in images:
-                    st.image(img["data"], caption=img["name"], width=160)
+                    st.image(image_data_url(img["name"], img["data"]), caption=img["name"], width=160)
 
             result = {}
             chunks = []
