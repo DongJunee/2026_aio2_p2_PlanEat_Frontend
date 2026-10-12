@@ -131,7 +131,9 @@ for msg in s.messages:
     if "ingredients" in msg:
         with st.container(border=True):
             st.markdown(f"**냉장고 재료 {len(msg['ingredients'])}개**")
-            st.markdown(''.join(f'<span class="chip">{escape(r["name"])} · {escape(r["amount"])}</span>' for r in msg["ingredients"]),unsafe_allow_html=True)
+            # 사진·영수증만으로는 수량을 정확히 판별하기 어려우므로, 확인 단계에서는
+            # 수량(예: "수량 미정")을 노출하지 않고 재료 이름만 보여준다.
+            st.markdown(''.join(f'<span class="chip">{escape(r["name"])}</span>' for r in msg["ingredients"]),unsafe_allow_html=True)
 
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")

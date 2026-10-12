@@ -39,8 +39,8 @@ class RecommendationHistoryTests(unittest.TestCase):
             app.run()
         self.assertFalse(app.exception)
         values = [getattr(item, "value", None) for item in app.main]
-        expected = ["첫 재료 답변", '<span class="chip">당근 · 1개</span>',
-                    "재료 수정", "수정 답변", '<span class="chip">당근 · 2개</span>',
+        expected = ["첫 재료 답변", '<span class="chip">당근</span>',
+                    "재료 수정", "수정 답변", '<span class="chip">당근</span>',
                     "재료 모두 삭제", "빈 재료 답변", "**냉장고 재료 0개**",
                     "추천해 줘", "추천 답변"]
         positions = [values.index(value) for value in expected]

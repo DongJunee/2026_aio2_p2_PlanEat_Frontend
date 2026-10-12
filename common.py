@@ -92,11 +92,72 @@ def require_auth():
 
 HTTP_TIMEOUT = 180
 
+_HTTP_STATUS_GUIDANCE = {
+    400: "요청 형식이 올바르지 않습니다. 입력 내용을 확인해 주세요.",
+    401: "백엔드 인증에 실패했습니다. 서비스 설정을 확인해 주세요.",
+    403: "이 요청을 처리할 권한이 없습니다.",
+    404: "요청한 백엔드 API 주소를 찾을 수 없습니다. BACKEND_URL과 API 경로를 확인해 주세요.",
+    408: "서버가 요청을 제때 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    413: "첨부한 데이터가 너무 큽니다. 사진 용량이나 개수를 줄여 주세요.",
+    422: "입력값을 처리할 수 없습니다. 누락되거나 잘못된 항목을 확인해 주세요.",
+    429: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+    500: "백엔드에서 처리 중 오류가 발생했습니다. Render 로그를 확인해 주세요.",
+    502: "백엔드 서비스가 응답하지 않습니다. Render 배포·재시작 상태를 확인한 뒤 다시 시도해 주세요.",
+    503: "백엔드 서비스가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+    504: "백엔드 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+}
+
 class ApiError(Exception):
     """화면에 그대로 보여줄 수 있는 오류 메시지를 담는다.
 
     httpx 가 던지는 예외 이름(ConnectError 등)이 아니라 무엇을 하면 되는지가 담긴 문장으로 바꿔서 돌려준다.
     """
+
+
+def _format_error_detail(value) -> str | None:
+    """백엔드가 공개한 안전한 오류 문구를 화면용 텍스트로 정리한다."""
+
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, dict):
+        for key in ("response", "detail", "message", "error"):
+            detail = _format_error_detail(value.get(key))
+            if detail:
+                return detail
+        return None
+    if isinstance(value, list):
+        messages: list[str] = []
+        for item in value[:3]:
+            if isinstance(item, dict):
+                message = item.get("msg") or item.get("message")
+                location = item.get("loc")
+                if isinstance(message, str):
+                    field = ".".join(str(part) for part in location) if isinstance(location, list) else "입력값"
+                    messages.append(f"{field}: {message}")
+                    continue
+            detail = _format_error_detail(item)
+            if detail:
+                messages.append(detail)
+        return " / ".join(messages) or None
+    return None
+
+
+def _api_error_from_response(response: httpx.Response) -> ApiError:
+    """HTTP 상태 코드와 JSON 오류 본문을 함께 사용자에게 전달한다."""
+
+    detail = None
+    try:
+        detail = _format_error_detail(response.json())
+    except (ValueError, json.JSONDecodeError):
+        # HTML 오류 페이지는 그대로 노출하지 않는다. 오류 코드별 안내가 더 안전하고 유용하다.
+        pass
+
+    status_code = response.status_code
+    message = detail or _HTTP_STATUS_GUIDANCE.get(
+        status_code,
+        "서버 요청 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    )
+    return ApiError(f"{message} (상태 코드 {status_code})")
 
 def api(method: str, path: str, *, accept=None, **kwargs):
     """JSON 또는 (event, data) SSE iterator를 반환한다."""
@@ -121,15 +182,7 @@ def api(method: str, path: str, *, accept=None, **kwargs):
         )
 
     if res.status_code >= 400:
-        # FastAPI가 계약 오류의 원인을 JSON으로 내려주므로, 사용자가 다음 행동을
-        # 알 수 있도록 안전한 서버 메시지만 보여준다.
-        try:
-            detail = res.json().get("response")
-        except (ValueError, AttributeError):
-            detail = None
-        if isinstance(detail, str) and detail.strip():
-            raise ApiError(detail.strip())
-        raise ApiError(f"요청이 실패했습니다 (상태 코드 {res.status_code}).")
+        raise _api_error_from_response(res)
 
     return res.json() if res.content else None
 
@@ -140,7 +193,11 @@ def api_stream(method: str, path: str, **kwargs):
         with httpx.stream(
             method, f"{BACKEND_URL}{path}", timeout=HTTP_TIMEOUT, **kwargs
         ) as res:
-            res.raise_for_status()
+            if res.status_code >= 400:
+                # raise_for_status()만 호출하면 4xx/5xx 본문을 버려 백엔드의 구체적인
+                # 오류 메시지를 화면에 보여줄 수 없다.
+                res.read()
+                raise _api_error_from_response(res)
             content_type = res.headers.get("content-type", "").split(";", 1)[0].strip()
             if content_type == "application/json":
                 # SSE 협상이 적용되지 않은 서버의 기존 JSON 응답도 지원한다.
@@ -167,8 +224,10 @@ def api_stream(method: str, path: str, **kwargs):
                         event = value or "message"
                     elif field == "data":
                         data_lines.append(value)
-    except httpx.HTTPStatusError as exc:
-        raise ApiError(f"요청이 실패했습니다 (상태 코드 {exc.response.status_code}).") from exc
+    except httpx.ConnectError as exc:
+        raise ApiError(
+            "백엔드 서버에 연결할 수 없습니다. Render 서비스 주소와 배포 상태를 확인해 주세요."
+        ) from exc
     except httpx.TimeoutException as exc:
         raise ApiError("응답 수신 시간이 초과되었습니다. 다시 시도해 주세요.") from exc
     except httpx.HTTPError as exc:

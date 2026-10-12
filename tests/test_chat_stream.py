@@ -91,9 +91,17 @@ class ChatStreamTests(unittest.TestCase):
             with self.subTest(body=body), self.assertRaises(common.ApiError):
                 self.consume(body)
 
-    def test_http_error(self):
-        with self.assertRaises(common.ApiError):
-            self.consume("failure", status=500)
+    def test_http_error_shows_backend_detail(self):
+        with self.assertRaisesRegex(common.ApiError, "재료 사진을 다시 올려 주세요"):
+            self.consume(
+                json.dumps({"detail": "재료 사진을 다시 올려 주세요"}),
+                "application/json",
+                status=422,
+            )
+
+    def test_gateway_error_shows_recovery_guidance(self):
+        with self.assertRaisesRegex(common.ApiError, "Render 배포·재시작 상태"):
+            self.consume("<html>Bad Gateway</html>", "text/html", status=502)
 
     def test_normal_api_still_returns_json(self):
         response = httpx.Response(200, json=self.result)
