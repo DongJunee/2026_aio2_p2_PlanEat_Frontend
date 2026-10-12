@@ -32,6 +32,16 @@ uv run streamlit run streamlit_app_proto.py
 경과 시간을 표시합니다. 첫 텍스트가 도착하거나 오류가 발생하면 로딩을 종료합니다.
 서버가 기존 `application/json` 응답을 반환하는 경우도 지원합니다.
 
+## 전체 테스트
+
+프로젝트 루트에서 `tests` 폴더의 모든 테스트를 일괄 실행합니다.
+
+```powershell
+uv run python -m unittest discover -s tests -v
+```
+
+각 테스트 결과가 표시되며, 마지막에 `OK`가 출력되면 전체 통과입니다.
+
 ## 스트리밍 테스트
 
 `tests/test_chat_stream.py`는 실제 백엔드 대신 모의 HTTP/SSE 응답을 사용해
