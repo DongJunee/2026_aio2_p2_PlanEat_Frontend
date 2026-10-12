@@ -90,7 +90,7 @@ def require_auth():
         st.markdown('<p class="auth-footer">인증 후 나만의 식단을 계획할 수 있어요.</p>', unsafe_allow_html=True)
         st.stop()
 
-HTTP_TIMEOUT = 60
+HTTP_TIMEOUT = 180
 
 class ApiError(Exception):
     """화면에 그대로 보여줄 수 있는 오류 메시지를 담는다.

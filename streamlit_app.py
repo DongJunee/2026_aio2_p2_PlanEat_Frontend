@@ -100,7 +100,9 @@ with st.sidebar:
     st.markdown('<div class="brand">🥬 PlanEat</div><div class="muted">내 냉장고에서 시작하는 식단</div>',unsafe_allow_html=True)
     st.write("")
     if st.button("＋ 새로운 대화",width="stretch"):
-        s.clear()
+        for key in list(s):
+            if key != "authed":
+                del s[key]
         st.rerun()
     st.divider()
     st.caption("오늘의 식사 준비")
