@@ -4,8 +4,10 @@ from io import BytesIO
 import streamlit as st
 from attachment_limits import MAX_SESSION_IMAGES, remaining_image_slots
 from PIL import Image, UnidentifiedImageError
+from common import require_auth
 
 st.set_page_config(page_title="[Proto] PlanEat · 오늘의 식단", page_icon="🥬", layout="wide")
+require_auth()
 SAMPLE = [{"재료": n, "수량": q, "확인 근거": "데모 예시"} for n,q in [("양배추","반 통"),("두부","1모"),("계란","3개"),("당근","1개"),("양파","2개"),("밥","1공기"),("닭가슴살","1팩")]]
 # TODO: Replace fixtures with backend recipe_sets (2 sets, 5 recipes each).
 # Each recipe owns its ingredients; previous paired-meal nutrition is not reused.

@@ -10,6 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RecommendationHistoryTests(unittest.TestCase):
+    def setUp(self):
+        password = patch("common.APP_PASSWORD", None)
+        password.start()
+        self.addCleanup(password.stop)
+
     def test_ingredient_cards_keep_snapshots_and_position(self):
         app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
 

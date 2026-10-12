@@ -17,6 +17,27 @@ uv run streamlit run streamlit_app.py
 uv run streamlit run streamlit_app_proto.py
 ```
 
+## 접속 비밀번호
+
+프로젝트 루트의 `.env` 파일에 아래와 같이 설정할 수 있습니다.
+
+```dotenv
+APP_PASSWORD="원하는 비밀번호"
+```
+
+설정을 추가하거나 변경한 뒤에는 Streamlit 서버를 재시작하세요.
+Streamlit secrets에 `APP_PASSWORD = "원하는 비밀번호"`를 설정하거나,
+실행 전에 PowerShell에서 환경 변수로 지정합니다.
+
+```powershell
+$env:APP_PASSWORD = "원하는 비밀번호"
+uv run streamlit run streamlit_app.py
+```
+
+설정하면 기본 페이지와 프로토타입 모두 비밀번호 인증 후 이용할 수 있습니다.
+인증은 세션 동안 유지되며, 비밀번호를 설정하지 않으면 바로 진입합니다.
+설정 우선순위는 secrets → 기존 환경 변수 → `.env`입니다.
+
 ## 채팅 스트리밍
 
 `streamlit_app.py`는 `/chat` 요청에 `Accept: text/event-stream` 헤더를 보내고,
