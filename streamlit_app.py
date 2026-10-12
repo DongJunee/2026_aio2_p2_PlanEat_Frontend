@@ -4,6 +4,7 @@ import mimetypes
 from contextlib import closing
 from copy import deepcopy
 from itertools import chain
+from random import choice
 from urllib.parse import urljoin
 from uuid import uuid4
 from html import escape
@@ -13,6 +14,19 @@ from attachment_limits import MAX_SESSION_IMAGES, remaining_image_slots
 import httpx
 from PIL import Image, UnidentifiedImageError
 from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api, chat_chunks, require_auth
+
+LOADING_MESSAGES = (
+    "셰프가 냉장고 안에서 재료들과 파티 중이에요.",
+    "양파가 눈물 닦으며 메뉴 회의에 참석했어요.",
+    "냉장고 속 달걀이 오늘의 주인공 자리를 노리고 있어요.",
+    "파프리카가 알록달록한 의견을 내고 있어요.",
+    "냄비가 벌써부터 보글보글 연습 중이에요.",
+    "두부가 어떤 요리로 변신할지 고민하고 있어요.",
+    "재료들이 서로 ‘나랑 잘 어울려!’ 하고 손들고 있어요.",
+    "프라이팬이 오늘의 메뉴를 기다리며 몸을 풀고 있어요.",
+    "장바구니가 재료를 출석체크 하고 있어요.",
+    "셰프가 냉장고 탐험을 마치고 메뉴를 들고 오는 중이에요.",
+)
 
 st.set_page_config(page_title="PlanEat · 오늘의 식단", page_icon="🥬", layout="wide")
 require_auth()
@@ -185,7 +199,7 @@ if prompt:
                 with st.chat_message("assistant", avatar="🥬"):
                     with closing(response_chunks()) as stream:
                         # 진행 이벤트만 오는 동안 표시하고 첫 텍스트 수신 시 숨긴다.
-                        with st.spinner("답변을 준비하고 있어요…", show_time=True):
+                        with st.spinner(choice(LOADING_MESSAGES), show_time=True):
                             first_chunk = next(stream, "")
                         streamed_text = st.write_stream(chain((first_chunk,), stream))
             except ApiError as exc:
