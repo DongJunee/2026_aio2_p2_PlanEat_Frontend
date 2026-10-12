@@ -12,9 +12,10 @@ import streamlit as st
 from attachment_limits import MAX_SESSION_IMAGES, remaining_image_slots
 import httpx
 from PIL import Image, UnidentifiedImageError
-from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api, chat_chunks
+from common import ApiError, BACKEND_URL, HTTP_TIMEOUT, api, chat_chunks, require_auth
 
 st.set_page_config(page_title="PlanEat · 오늘의 식단", page_icon="🥬", layout="wide")
+require_auth()
 st.markdown('''<style>
 /* 상단 Deploy 버튼 숨기기 */
 .stAppDeployButton { display: none; }

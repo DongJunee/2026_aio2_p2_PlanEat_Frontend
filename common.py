@@ -5,18 +5,39 @@
 """
 
 import os
+import hmac
 import json
+from pathlib import Path
+from dotenv import load_dotenv
 import httpx
 import streamlit as st
 
-try:
-    _backend_url_secret = st.secrets.get("BACKEND_URL")
-except Exception:
-    _backend_url_secret = None
+# 실행 디렉터리와 관계없이 프로젝트 루트의 .env를 읽는다.
+# 이미 지정된 환경 변수는 덮어쓰지 않는다.
+load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
 
-BACKEND_URL = _backend_url_secret or os.environ.get(
-    "BACKEND_URL", "http://127.0.0.1:8000"
-)
+def setting(name, default=None):
+    """Streamlit secrets를 우선하고, 없으면 환경 변수를 읽는다."""
+    try:
+        value = st.secrets.get(name)
+    except FileNotFoundError:
+        value = None
+    return value or os.environ.get(name, default)
+
+BACKEND_URL = setting("BACKEND_URL", "http://127.0.0.1:8000")
+APP_PASSWORD = setting("APP_PASSWORD")
+
+
+def require_auth():
+    """페이지를 실행할 때마다 현재 세션의 접속 인증을 확인한다."""
+    if APP_PASSWORD and not st.session_state.get("authed"):
+        pw = st.text_input("접속 비밀번호", type="password")
+        if pw and hmac.compare_digest(pw.encode("utf-8"), APP_PASSWORD.encode("utf-8")):
+            st.session_state.authed = True
+            st.rerun()
+        if pw:
+            st.error("비밀번호가 올바르지 않습니다.")
+        st.stop()
 
 HTTP_TIMEOUT = 60
 

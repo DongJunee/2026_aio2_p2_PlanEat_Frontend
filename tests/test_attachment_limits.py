@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class AttachmentLimitTests(unittest.TestCase):
     def setUp(self):
+        password = patch("common.APP_PASSWORD", None)
+        password.start()
+        self.addCleanup(password.stop)
         data = BytesIO()
         Image.new("RGB", (1, 1)).save(data, format="PNG")
         self.image = {"name": "food.png", "data": data.getvalue()}
