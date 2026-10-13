@@ -112,7 +112,7 @@ st.markdown("**오늘의 식단**")
 st.divider()
 if not s.messages:
     st.markdown('<div class="hero"><div class="eyebrow">A LITTLE LESS WASTE, A BETTER MEAL</div><h1>냉장고에 있는 재료로,<br>오늘은 뭘 먹을까요?</h1><p>냉장고와 영수증 사진을 올려주세요.<br>재료를 함께 확인하고, 나에게 맞는 식단을 찾아봐요.</p></div>',unsafe_allow_html=True)
-    for col,icon,title,desc in zip(st.columns(3),["📷","🥕","🍽️"],["사진으로 간편하게","재료는 꼼꼼하게","선택은 여유롭게"],["냉장고 · 영수증 사진 최대 5장","수량 수정부터 빠진 재료 추가까지","SET A · B, 각 5개 메뉴"]):
+    for col,icon,title,desc in zip(st.columns(3),["📷","🥕","🍽️"],["사진으로 간편하게","재료는 꼼꼼하게","선택은 자유롭게"],["냉장고 · 영수증 사진 최대 5장","수량 수정부터 빠진 재료 추가까지","나를 위한 다섯 끼, 두 가지 식탁"]):
         with col,st.container(border=True):
             st.write(icon)
             st.markdown(f"**{title}**")
