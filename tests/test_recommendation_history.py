@@ -90,6 +90,30 @@ class RecommendationHistoryTests(unittest.TestCase):
         self.assertIn("새 추천 세트", [item.value for item in app.subheader])
         self.assertNotIn("첫 추천", [item.value for item in app.subheader])
 
+    def test_pdf_ready_response_does_not_repeat_recommendations(self):
+        app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
+
+        def send(text, result):
+            with patch("streamlit.chat_input", side_effect=[text, None]), patch(
+                "common.api", return_value=(event for event in [("result", result)])
+            ):
+                app.run()
+            self.assertFalse(app.exception)
+
+        data = {"recipe_sets": [{"set_id": "첫 추천", "recipes": []}]}
+        send("추천해 줘", {"status": "SUCCESS", "step": "COMPLETED",
+                           "response": "추천 답변", "data": data,
+                           "next_action": "FEEDBACK_OR_SET_SELECTION"})
+        send("첫번째 세트", {"status": "SUCCESS", "step": "COMPLETED",
+                            "response": "상세 PDF를 생성했습니다.", "data": data,
+                            "next_action": "PDF_READY"})
+
+        self.assertEqual([item.value for item in app.subheader].count("첫 추천"), 1)
+        self.assertEqual(
+            sum("recommendation_data" in msg for msg in app.session_state["messages"]),
+            1,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
