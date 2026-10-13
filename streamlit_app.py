@@ -281,6 +281,7 @@ if prompt:
                     msg.get("role") == "assistant"
                     and msg.get("text") == response_text
                     and "recommendation_data" in msg
+                    and msg.get("recommendation_data") == (result.get("data") or {})
                     for msg in s.messages
                 )
                 if (

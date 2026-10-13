@@ -141,6 +141,33 @@ class RecommendationHistoryTests(unittest.TestCase):
             1,
         )
 
+    def test_changed_recommendation_data_is_shown_even_with_same_message(self):
+        app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
+
+        def send(text, result):
+            with patch("streamlit.chat_input", side_effect=[text, None]), patch(
+                "common.api", return_value=(event for event in [("result", result)])
+            ):
+                app.run()
+            self.assertFalse(app.exception)
+
+        first_data = {"recipe_sets": [{"set_id": "첫 추천", "recipes": []}]}
+        second_data = {"recipe_sets": [{"set_id": "재료 변경 추천", "recipes": []}]}
+        response = "확정한 재료와 조건에 맞는 메인·반찬 식단을 추천했습니다."
+        send("추천해 줘", {"status": "SUCCESS", "step": "COMPLETED",
+                           "response": response, "data": first_data,
+                           "next_action": "FEEDBACK_OR_SET_SELECTION"})
+        send("재료 변경 후 추천", {"status": "SUCCESS", "step": "COMPLETED",
+                                  "response": response, "data": second_data,
+                                  "next_action": "FEEDBACK_OR_SET_SELECTION"})
+
+        self.assertEqual([item.value for item in app.subheader].count("첫 추천"), 1)
+        self.assertEqual([item.value for item in app.subheader].count("재료 변경 추천"), 1)
+        self.assertEqual(
+            sum("recommendation_data" in msg for msg in app.session_state["messages"]),
+            2,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
