@@ -1,6 +1,7 @@
 """PlanEat UI """
 import base64
 import mimetypes
+import re
 from contextlib import closing
 from copy import deepcopy
 from itertools import chain
@@ -59,6 +60,42 @@ def message(role,text,images=None,recommendation_data=None,ingredients=None):
     if ingredients is not None:
         entry["ingredients"] = deepcopy(ingredients)
     s.messages.append(entry)
+
+
+def format_response_with_questions(response_text, questions):
+    """질문 예시는 별도 질문 목록에만 보여 중복 문장을 줄인다."""
+
+    response = str(response_text or "").strip()
+    valid_questions = [
+        str(question).strip()
+        for question in questions
+        if isinstance(question, str) and question.strip()
+    ]
+    if not valid_questions:
+        return response
+
+    def normalize(value):
+        return re.sub(r"[^가-힣A-Za-z0-9]+", "", value).lower()
+
+    def question_core(value):
+        return re.sub(r"\s*예\s*[:：].*$", "", value).strip()
+
+    question_cores = [normalize(question_core(question)) for question in valid_questions]
+    cleaned_lines = []
+    for line in response.splitlines():
+        stripped = line.strip()
+        normalized_line = normalize(stripped.lstrip("-• "))
+        if any(core and core in normalized_line for core in question_cores):
+            # 응답 본문에 이미 들어온 질문은 아래의 질문 목록에서 한 번만 표시한다.
+            continue
+        if "식단목적" in normalized_line:
+            # 본문 안내에는 목적 예시를 반복하지 않고, 아래 질문 항목에만 남긴다.
+            line = re.sub(r"\s*예\s*[:：].*$", "", line).rstrip()
+        cleaned_lines.append(line)
+
+    cleaned_text = "\n".join(cleaned_lines).strip()
+    question_text = "\n".join(f"- {question}" for question in valid_questions)
+    return f"{cleaned_text}\n\n{question_text}".strip()
 
 
 def image_data_url(filename: str, data: bytes) -> str:
@@ -238,8 +275,7 @@ if prompt:
                 response_text = result.get("response") or streamed_text or ""
                 questions = result.get("questions") or []
                 if questions:
-                    question_text = "\n".join(f"- {question}" for question in questions)
-                    response_text = f"{response_text}\n\n{question_text}".strip()
+                    response_text = format_response_with_questions(response_text, questions)
                 recommendation_data = None
                 if (
                     result.get("status") == "SUCCESS"
