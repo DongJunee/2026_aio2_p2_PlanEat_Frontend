@@ -107,6 +107,17 @@ def image_data_url(filename: str, data: bytes) -> str:
     encoded = base64.b64encode(data).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
 
+
+def ingredient_chip_label(ingredient):
+    """확실한 수량만 재료 칩에 표시하고, 미상·미정 수량은 숨긴다."""
+
+    name = str(ingredient.get("name") or "").strip()
+    amount = str(ingredient.get("amount") or "").strip()
+    unknown_amounts = {"수량 미상", "수량 미정", "미상", "미정"}
+    if amount and amount not in unknown_amounts:
+        return f"{name} ({amount})"
+    return name
+
 def render_recommendations(data):
     st.markdown('<div class="eyebrow">YOUR MEAL IDEAS</div>',unsafe_allow_html=True)
     st.subheader("오늘, 마음이 가는 식단을 골라보세요",anchor=False)
@@ -170,7 +181,13 @@ for msg in s.messages:
             st.markdown(f"**냉장고 재료 {len(msg['ingredients'])}개**")
             # 사진·영수증만으로는 수량을 정확히 판별하기 어려우므로, 확인 단계에서는
             # 수량(예: "수량 미정")을 노출하지 않고 재료 이름만 보여준다.
-            st.markdown(''.join(f'<span class="chip">{escape(r["name"])}</span>' for r in msg["ingredients"]),unsafe_allow_html=True)
+            st.markdown(
+                "".join(
+                    f'<span class="chip">{escape(ingredient_chip_label(ingredient))}</span>'
+                    for ingredient in msg["ingredients"]
+                ),
+                unsafe_allow_html=True,
+            )
 
 if not s.messages:
     st.caption("입력창의 ＋로 사진을 첨부하세요. 전송 전 미리보기에서 삭제할 수 있어요. 최대 5장 · JPG, PNG, WEBP · 장당 10MB")
