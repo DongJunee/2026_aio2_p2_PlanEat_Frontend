@@ -277,6 +277,12 @@ if prompt:
                 if questions:
                     response_text = format_response_with_questions(response_text, questions)
                 recommendation_data = None
+                repeated_recommendation_message = any(
+                    msg.get("role") == "assistant"
+                    and msg.get("text") == response_text
+                    and "recommendation_data" in msg
+                    for msg in s.messages
+                )
                 if (
                     result.get("status") == "SUCCESS"
                     and result.get("step") == "COMPLETED"
@@ -284,6 +290,9 @@ if prompt:
                     # PDF 다운로드 완료 응답은 이미 위 대화에 표시된 레시피를
                     # 다시 그리지 않고, PDF 생성 안내 문장만 남긴다.
                     and result.get("next_action") != "PDF_READY"
+                    # 같은 추천 안내문이 이미 레시피와 함께 표시됐다면, 이후
+                    # 중복 응답에서는 문장만 남기고 카드는 반복하지 않는다.
+                    and not repeated_recommendation_message
                 ):
                     # 재추천 결과는 백엔드가 반환한 최신 식단을 그대로 대화 기록에
                     # 남긴다. 최초 추천만 표시하면 새 레시피가 화면에 보이지 않는다.
