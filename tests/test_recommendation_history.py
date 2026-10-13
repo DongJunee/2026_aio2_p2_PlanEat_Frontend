@@ -78,8 +78,8 @@ class RecommendationHistoryTests(unittest.TestCase):
             app.run()
         self.assertFalse(app.exception)
         self.assertEqual([item.value for item in app.subheader].count("첫 추천"), 1)
-        self.assertNotIn("둘째 추천", [item.value for item in app.subheader])
-        self.assertEqual(sum("recommendation_data" in msg for msg in app.session_state["messages"]), 1)
+        self.assertEqual([item.value for item in app.subheader].count("둘째 추천"), 1)
+        self.assertEqual(sum("recommendation_data" in msg for msg in app.session_state["messages"]), 2)
         # 새 대화에서는 다시 최초 추천을 표시할 수 있다.
         app.button[0].click()
         with patch("streamlit.chat_input", return_value=None):

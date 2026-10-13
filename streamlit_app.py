@@ -281,9 +281,10 @@ if prompt:
                     result.get("status") == "SUCCESS"
                     and result.get("step") == "COMPLETED"
                     and "recipe_sets" in (result.get("data") or {})
-                    # 최초 추천은 기록에 고정하고 후속 완료 응답에는 추가하지 않는다.
-                    and not any("recommendation_data" in msg for msg in s.messages)
                 ):
+                    # 재추천·세트 선택 결과도 백엔드가 반환한 최신 식단을 그대로
+                    # 대화 기록에 남긴다. 최초 추천만 표시하면 백엔드가 새 레시피를
+                    # 만들어도 프론트에서는 "말만 하고 넘어간 것"처럼 보인다.
                     recommendation_data = result["data"]
                 message("assistant", response_text, recommendation_data=recommendation_data,
                         ingredients=ingredients)
